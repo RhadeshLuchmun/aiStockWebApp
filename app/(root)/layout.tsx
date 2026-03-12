@@ -1,4 +1,10 @@
 import Header from "@/components/Header";
+import { Inter } from "next/font/google";
+
+const inter = Inter({
+    subsets: ["latin"],
+    variable: "--font-sans",
+});
 
 const Layout = ({children} :{children: React.ReactNode}) => {
     return (
