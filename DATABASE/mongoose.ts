@@ -1,4 +1,4 @@
-import mongoose, {Promise} from "mongoose";
++import mongoose from "mongoose";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -33,4 +33,6 @@ export const connectToDatabase = async () => {
     }
     console.log(`Connected to database ${process.env.NODE_ENV} - ${ MONGODB_URI }`);
 
+
+    return cached.conn;
 };
