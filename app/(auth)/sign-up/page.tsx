@@ -5,9 +5,13 @@ import InputField from "@/components/forms/InputField";
 import SelectField from "@/components/forms/SelectField";
 import {INVESTMENT_GOALS, PREFERRED_INDUSTRIES, RISK_TOLERANCE_OPTIONS} from "@/lib/constants";
 import FooterLink from "@/components/forms/FooterLink";
+import {signUpWithEmail} from "@/lib/actions/auth.actions";
+import {useRouter} from "next/navigation";
+import {toast} from "sonner";
 
 
 const SignUp = () => {
+    const router = useRouter();
     const {
         register,
         handleSubmit,
@@ -27,9 +31,11 @@ const SignUp = () => {
     });
     const onSubmit = async (data:SignUpFormData) => {
         try {
-            console.log(data);
+            const result = await signUpWithEmail(data);
+            if(result.success) router.push('/');
         } catch (e){
             console.error(e);
+            toast.error('Sign Up Failed.', {description: e instanceof Error ? e.message : 'An unexpected error occurred'})
         }
 
     }
@@ -53,7 +59,13 @@ const SignUp = () => {
                     placeholder="contact@gmail.com"
                     register={register}
                     error={errors.email}
-                    validation={{required: 'Email name is requires', pattern: /^\w+@\w+$/, message: 'Email address is required'}}
+                    validation={{
+                        required: "Email address is required",
+                        pattern: {
+                            value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                            message: "Enter a valid email address",
+                        },
+                    }}
                 />
 
                 <InputField
