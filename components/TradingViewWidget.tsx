@@ -1,3 +1,5 @@
+
+
 'use client';
 // TradingViewWidget.jsx
 import React, { useRef, memo } from 'react';
@@ -26,3 +28,4 @@ const TradingViewWidget = ({title, scriptUrl, config,height =600, className}: Tr
 }
 
 export default memo(TradingViewWidget);
+

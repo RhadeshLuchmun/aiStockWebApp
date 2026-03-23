@@ -35,7 +35,7 @@ export async function getNews(symbols?: string[]): Promise<MarketNewsArticle[]> 
 
     const maxArticles = 6;
 
-    // If we have symbols, try to fetch company news per symbol and round-robin select
+    // If we have symbols, try to fetch company news per [symbol] and round-robin select
     if (cleanSymbols.length > 0) {
       const perSymbolArticles: Record<string, RawNewsArticle[]> = {};
 
