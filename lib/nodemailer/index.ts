@@ -15,10 +15,10 @@ export const sendWelcomeEmail = async ({email,name,intro}: WelcomeEmailData) => 
         .replace('{{intro}}',intro);
 
     const mailOptions = {
-        from: `"Signalist" <rluch069@uottawa.ca>`,
+        from: `"AI STOCK APP" <rluch069@uottawa.ca>`,
         to: email,
-        subject: 'Welcome to Signalist',
-        text: 'Thanks for joining Signalist!',
+        subject: 'Welcome to Your Personal AI STOCK APP',
+        text: 'Thanks for joining!',
         html: htmlTemplate,
     }
     await transporter.sendMail(mailOptions);
@@ -32,10 +32,10 @@ export const sendNewsSummaryEmail = async (
         .replace('{{newsContent}}', newsContent);
 
     const mailOptions = {
-        from: `"Signalist News" <rluch069@uottawa.ca>`,
+        from: `"AI STOCK APP" <rluch069@uottawa.ca>`,
         to: email,
         subject: `📈 Market News Summary Today - ${date}`,
-        text: `Today's market news summary from Signalist`,
+        text: `Today's market news summary from your AI STOCK APP`,
         html: htmlTemplate,
     };
 
