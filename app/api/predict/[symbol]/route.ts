@@ -13,7 +13,7 @@ export async function GET(
         await connectToDatabase();
 
         // 1. Check if a fresh prediction exists (< 24h)
-        const existingPrediction = await Prediction.findOne({ symbol: ticker }).lean();
+        const existingPrediction = await Prediction.findOne({ symbol: ticker });
         if (existingPrediction) {
             return NextResponse.json(existingPrediction);
         }
@@ -25,7 +25,7 @@ export async function GET(
         });
 
         if (!pythonResponse.ok) {
-            return NextResponse.json({ error: 'AI Engine is offline or failed' }, { status: 502 });
+            throw new Error('AI Engine is offline or failed');
         }
 
         const aiData = await pythonResponse.json();
@@ -36,9 +36,9 @@ export async function GET(
             ...aiData,
         });
 
-        return NextResponse.json(newPrediction.toJSON());
-    } catch (error) {
+        return NextResponse.json(newPrediction);
+    } catch (error: any) {
         console.error('Prediction Error:', error);
-        return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

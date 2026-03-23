@@ -6,6 +6,11 @@ import { getWatchlistSymbolsByEmail } from "@/lib/actions/watchlist.actions";
 import { getNews } from "@/lib/actions/finnhub.actions";
 import { getFormattedTodayDate } from "@/lib/utils";
 
+// --- NEW IMPORTS FOR EARNINGS SUMMARY ---
+import YahooFinance from 'yahoo-finance2';
+import { connectToDatabase } from "@/DATABASE/mongoose";
+import EarningsSummary from "@/DATABASE/models/EarningsSummary";
+
 
 export const sendSignUpEmail = inngest.createFunction(
     {id: 'sign-up-email'},
@@ -19,16 +24,16 @@ export const sendSignUpEmail = inngest.createFunction(
         const prompt = PERSONALIZED_WELCOME_EMAIL_PROMPT.replace('{{userProfile}}', userProfile)
         const response = await step.ai.infer('generate-welcome-intro', {
             model: step.ai.models.gemini({ model: 'gemini-3-flash-preview' }),
-                body:{
-                    contents: [
-                        {
-                            role: 'user',
-                            parts: [
-                                {text: prompt}
-                            ]
-                        }
-                    ]
-                }
+            body:{
+                contents: [
+                    {
+                        role: 'user',
+                        parts: [
+                            {text: prompt}
+                        ]
+                    }
+                ]
+            }
         })
 
         await step.run('send-welcome-email', async () =>{
@@ -84,7 +89,7 @@ export const sendDailyNewsSummary = inngest.createFunction(
                     body:{
                         contents: [{role: 'user', parts: [{text: prompt}]}]
                     }
-                    });
+                });
                 const part = response.candidates?.[0]?.content?.parts?.[0];
                 const newsContent = (part && 'text' in part ? part.text : null) || 'No news available';
 
@@ -110,3 +115,78 @@ export const sendDailyNewsSummary = inngest.createFunction(
         }
     }
 )
+
+// --- NEW FUNCTION: GENERATE AI EARNINGS SUMMARY ---
+export const generateEarningsSummary = inngest.createFunction(
+    { id: "generate-earnings-summary" },
+    { event: "stock.earnings.requested" },
+    async ({ event, step }) => {
+        const { symbol } = event.data;
+
+        // 1. Fetch REAL news headlines specifically about earnings
+        const newsContext = await step.run('fetch-yahoo-news', async () => {
+            const yahooFinance = new YahooFinance();
+            // Appending ' earnings' forces Yahoo to grab financial reports
+            const searchRes = await yahooFinance.search(`${symbol} earnings`, { newsCount: 10 });
+            // Grab the actual article titles to feed to Gemini
+            return searchRes.news.map((n: any) => n.title).join(" | ");
+        });
+
+        // 2. Call Gemini with a strict Time-Bound prompt
+        const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); // e.g., "March 2026"
+
+        const prompt = `
+            Today's date is ${currentDate}. You are an expert financial analyst. 
+            Your task is to identify and summarize the ABSOLUTE LATEST quarterly earnings report for the stock ticker ${symbol} that was released prior to ${currentDate}.
+            
+            Recent news headlines to help you identify the latest quarter: 
+            ${newsContext}
+            
+            Respond strictly in JSON format with the following keys:
+            - "earningsDate": The actual quarter and year of this specific report (e.g., "Q4 2025" or "Q1 2026"). Do not hallucinate future dates.
+            - "summaryText": A solid 2-paragraph summary of revenue, EPS, and forward guidance.
+            - "highlights": An array of 3 bullet-point strings highlighting key metrics.
+            - "sentiment": A single word: "Bullish", "Bearish", or "Neutral".
+            
+            Do not include markdown blocks like \`\`\`json. Return raw JSON only.
+        `;
+
+        const response = await step.ai.infer(`ask-gemini-earnings-${symbol}`, {
+            model: step.ai.models.gemini({ model: 'gemini-3-flash-preview' }),
+            body: {
+                contents: [
+                    {
+                        role: 'user',
+                        parts: [{ text: prompt }]
+                    }
+                ]
+            }
+        });
+
+        const part = response.candidates?.[0]?.content?.parts?.[0];
+        const responseText = (part && 'text' in part ? part.text : null) || '{}';
+
+        // Clean markdown formatting just in case Gemini disobeys the instruction
+        const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const aiSummary = JSON.parse(cleanJson || '{}');
+
+        // 3. Save to MongoDB
+        await step.run("save-earnings-to-db", async () => {
+            await connectToDatabase();
+            await EarningsSummary.findOneAndUpdate(
+                { symbol },
+                {
+                    symbol,
+                    earningsDate: aiSummary.earningsDate || "Recent Quarter",
+                    summaryText: aiSummary.summaryText || "Summary unavailable.",
+                    highlights: aiSummary.highlights || [],
+                    sentiment: aiSummary.sentiment || "Neutral",
+                    updatedAt: new Date()
+                },
+                { upsert: true, new: true }
+            );
+        });
+
+        return { success: true, symbol };
+    }
+);

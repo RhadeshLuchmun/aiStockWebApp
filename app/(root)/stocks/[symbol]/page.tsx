@@ -1,6 +1,8 @@
 import TradingViewWidget from "@/components/TradingViewWidget";
-import WatchlistButton from "@/components/WatchlistButton";
+import PortfolioButton from "@/components/PortfolioButton";
 import PredictionSection from "@/components/PredictionSection";
+import EarningsCard from "@/components/EarningsCard";
+import YahooFinance from 'yahoo-finance2';
 import {
   SYMBOL_INFO_WIDGET_CONFIG,
   CANDLE_CHART_WIDGET_CONFIG,
@@ -9,9 +11,22 @@ import {
   COMPANY_FINANCIALS_WIDGET_CONFIG,
 } from "@/lib/constants";
 
+
 export default async function StockDetails({ params }: StockDetailsPageProps) {
   const { symbol } = await params;
   const scriptUrl = `https://s3.tradingview.com/external-embedding/embed-widget-`;
+
+  // 2. Instantiate the YahooFinance class (v3 requirement)
+  const yahooFinance = new YahooFinance();
+
+  // 3. Fetch the live price
+  let livePrice = 0;
+  try {
+    const quote = await yahooFinance.quote(symbol);
+    livePrice = quote.regularMarketPrice || 0;
+  } catch (error) {
+    console.error("Failed to fetch price:", error);
+  }
 
   return (
       <div className="flex min-h-screen p-4 md:p-6 lg:p-8">
@@ -33,15 +48,18 @@ export default async function StockDetails({ params }: StockDetailsPageProps) {
                 height={600}
             />
 
-            {/* --- 2. ADDED THE AI PREDICTION SECTION HERE --- */}
             <PredictionSection symbol={symbol} />
 
           </div>
 
           {/* Right column */}
           <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-between">
-              <WatchlistButton symbol={symbol.toUpperCase()} company={symbol.toUpperCase()} isInWatchlist={false} />
+            <div className="flex items-center justify-end">
+              <PortfolioButton
+                  symbol={symbol}
+                  currentPrice={livePrice}
+                  showTrashIcon={true}
+              />
             </div>
 
             <TradingViewWidget
@@ -64,6 +82,7 @@ export default async function StockDetails({ params }: StockDetailsPageProps) {
                 config={COMPANY_FINANCIALS_WIDGET_CONFIG(symbol)}
                 height={464}
             />
+            <EarningsCard symbol={symbol.toUpperCase()} />
           </div>
         </section>
       </div>
