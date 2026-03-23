@@ -55,7 +55,7 @@ export const getTodayDateRange = () => {
   };
 };
 
-// Calculate news per symbol based on watchlist size
+// Calculate news per [symbol] based on watchlist size
 export const calculateNewsDistribution = (symbolsCount: number) => {
   let itemsPerSymbol: number;
   let targetNewsCount = 6;
